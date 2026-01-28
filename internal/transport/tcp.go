@@ -2,11 +2,12 @@ package transport
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
-	"strings"
+	
 
 	"github.com/FelipeFelipeRenan/govoid/internal/engine"
 )
@@ -53,7 +54,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 
 	for {
-		line, err := reader.ReadString('\n')
+		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err != io.EOF {
 				s.logger.Error("erro de leitura", "remote_addr", conn.RemoteAddr(), "error", err)
@@ -61,44 +62,43 @@ func (s *Server) handleConn(conn net.Conn) {
 			return
 		}
 
-		line = strings.TrimSpace(line)
+		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
 
 		response := s.executeCommand(line)
 
-		_, _ = conn.Write([]byte(response + "\n"))
+		conn.Write(append(response, '\n'))
 	}
 }
 
-func (s *Server) executeCommand(input string) string {
-	parts := strings.Fields(input)
+func (s *Server) executeCommand(input []byte) []byte {
+	parts := bytes.Fields(input)
 	if len(parts) == 0{
-		return "ERR empty command"
+		return []byte("ERR empty command")
 	}
 
-	cmd := strings.ToUpper(parts[0])
-
+	cmd := string(bytes.ToUpper(parts[0]))
 	switch cmd {
 	case "SET":
 		if len(parts) < 3{
-			return "ERR usage: SET key value"
+			return []byte("ERR usage: SET key value")
 		}
 		s.store.Set(parts[1], parts[2])
-		return "OK"
+		return []byte("OK")
 	
 	case "GET":
 		if len(parts) < 2{
-			return "ERR usage: GET key"
+			return []byte("ERR usage: GET key")
 		}
 
 		val, ok := s.store.Get(parts[1])
 		if !ok {
-			return "(nil)"
+			return []byte("(nil)")
 		}
-		return val
+		return []byte(val)
 	default:
-		return "ERR unknown command"
+		return []byte("ERR unknown command")
 	}
 }

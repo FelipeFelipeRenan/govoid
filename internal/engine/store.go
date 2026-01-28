@@ -27,7 +27,7 @@ func NewStringStore() *StringStore {
 }
 
 
-func (s *StringStore) getShard(key string) *Shard {
+func (s *StringStore) getShard(key []byte) *Shard {
 	h := HashFNV32(key)
 
 	index := h % uint32(ShardCount)
@@ -35,17 +35,17 @@ func (s *StringStore) getShard(key string) *Shard {
 	return s.shards[index]
 }
 
-func (s *StringStore) Set(key, value string)  {
+func (s *StringStore) Set(key, value []byte)  {
 	
 	shard := s.getShard(key)
 
 	shard.mu.Lock()
 	defer shard.mu.Unlock()
 
-	shard.items[key] = value
+	shard.items[string(key)] = string(value)
 }
 
-func (s *StringStore) Get(key string) (string, bool)  {
+func (s *StringStore) Get(key []byte) (string, bool)  {
 	
 
 	shard := s.getShard(key)
@@ -53,6 +53,6 @@ func (s *StringStore) Get(key string) (string, bool)  {
 	shard.mu.Lock()
 	defer shard.mu.Unlock()
 
-	val, ok := shard.items[key]
+	val, ok := shard.items[string(key)]
 	return val, ok
 }

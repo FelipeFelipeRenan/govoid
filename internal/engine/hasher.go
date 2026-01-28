@@ -6,14 +6,14 @@
  )
 
 
-func HashFNV32(key string) uint32{
+func HashFNV32(key []byte) uint32{
 	var hash  uint32 = offset32
 
-	for i := 0; i < len(key); i++{
-
-		hash ^=uint32(key[i])
-
+	for _, b := range key {
+		hash ^= uint32(b)
 		hash *= prime32
+
+
 	}
 
 	return hash

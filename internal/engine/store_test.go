@@ -9,11 +9,11 @@ import (
 // TestHashDeterminism garante que a matemática não é aleatória
 func TestHashDeterminism(t *testing.T) {
 	key := "analepsy"
-	expected := HashFNV32(key)
+	expected := HashFNV32([]byte(key))
 
 	// Roda 100 vezes pra ter certeza absoluta
 	for i := 0; i < 100; i++ {
-		if result := HashFNV32(key); result != expected {
+		if result := HashFNV32([]byte(key)); result != expected {
 			t.Fatalf("O Hash mudou! Esperado %d, Recebido %d", expected, result)
 		}
 	}
@@ -26,7 +26,7 @@ func TestShardIndexBounds(t *testing.T) {
 	inputs := []string{"java", "go", "rust", "cpp", "python", "javascript"}
 
 	for _, key := range inputs {
-		shard := store.getShard(key)
+		shard := store.getShard([]byte(key))
 		if shard == nil {
 			t.Fatalf("Shard nil retornado para a chave %s", key)
 		}
@@ -48,11 +48,11 @@ func TestConcurrentAccess(t *testing.T) {
 			defer wg.Done()
 			
 			key := fmt.Sprintf("key-%d", id) // Cada um escreve uma chave diferente
-			store.Set(key, "value")
+			store.Set([]byte(key), []byte("value"))
 			
 			// E tenta ler uma chave "quente" que todo mundo acessa
 			// Isso testa se o RLock está funcionando (vários lendo ao mesmo tempo)
-			_, _ = store.Get("key-0") 
+			_, _ = store.Get([]byte("key-0")) 
 		}(i)
 	}
 
@@ -65,6 +65,34 @@ func BenchmarkHashFNV32(b *testing.B) {
 	// b.N é controlado pelo Go. Ele vai rodar 1 vez, depois 100, depois 1 milhão...
 	// até conseguir uma média estatística confiável.
 	for i := 0; i < b.N; i++ {
-		HashFNV32(key)
+		HashFNV32([]byte(key))
+	}
+}
+
+
+func BenchmarkStoreSet(b *testing.B) {
+	store := NewStringStore()
+	key := []byte("minha-chave-de-teste")
+	val := []byte("meu-valor-de-teste-byte-buffer")
+
+	b.ResetTimer() // Zera o cronômetro para ignorar o setup acima
+	for i := 0; i < b.N; i++ {
+		// O Set DEVE alocar memória, pois cria strings novas no map
+		store.Set(key, val)
+	}
+}
+
+func BenchmarkStoreGet(b *testing.B) {
+	store := NewStringStore()
+	key := []byte("chave-de-leitura")
+	val := []byte("valor-de-leitura")
+	
+	// Popula antes
+	store.Set(key, val)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// O Get NÃO DEVE alocar memória se o truque do compilador funcionar
+		_, _ = store.Get(key)
 	}
 }
